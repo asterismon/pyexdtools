@@ -1,0 +1,867 @@
+import cmath
+import ctypes
+import functools
+import math
+import os
+import time
+import colorama
+import requests
+from typing import Any, Callable, Dict, List, Tuple, Union, overload  # using for pylint
+from threading import Thread
+from numpy import ndarray
+
+colorama.init(autoreset=False)
+
+__version__ = "0.4.6"
+
+def asyncFuncTimer(func: Callable) -> Callable:
+    '''
+    异步测定函数运行时间(无返回值)
+    误差范围0~+10ms
+    '''
+    def __timer(*args, **kwargs) -> None:
+        nonlocal func
+        start = time.perf_counter_ns()
+        func_running = Thread(target=func,args=args,kwargs=kwargs)
+        func_running.run()
+        while func_running.isAlive():
+            time.sleep(10)
+            stop = time.perf_counter_ns()
+            print(f"<{func.__name__}>运行中...已运行{(stop-start)/1_000_000} ms")
+        print(f"<{func.__name__}>已结束,运行了{(stop-start)/1_000_000} ms")
+    return __timer
+
+
+def funcTimer(func: Callable) -> Callable:
+    '''
+    测定函数运行时间的装饰器(无返回值)
+    A decorator to count time the func uses
+    '''
+    def __timer(*args, **kwargs) -> None:
+        nonlocal func
+        start = time.perf_counter_ns()
+        func(*args, **kwargs)
+        stop = time.perf_counter_ns()
+        print(f'<{func.__name__}>耗时{stop-start}ns({float(stop-start)/1_000_000_000} seconds)')
+    return __timer
+
+
+def codeTimer(func: Callable) -> Callable:#NEED TEST
+    '''
+    测定函数运行时间并返回其运行值
+    count time the func uses, and return the result
+    '''
+    @funcTimer
+    @functools.wraps(func)
+    def __codeTimer(*args, **kwargs) -> Any:
+        nonlocal func
+        return func(*args, **kwargs)
+    return __codeTimer
+
+
+class Lnum:
+    '''
+    受限数值(Limited Number)
+    创建实例后使用 实例名称()来获取数值
+
+    Raises:
+        Lnum.RangeError
+        Lnum.OutofRangeError
+    '''
+    class RangeError(Exception):pass
+    class OutofRangeError(Exception):pass
+
+    def __init__(self, num: Union[int, float], minimum: Union[int, float] = float('-inf'), maximum: Union[int, float] = float('inf')) -> None:
+        self.num:Union[int, float] = num
+        self.mini:Union[int, float] = minimum
+        self.maxi:Union[int, float] = maximum
+
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        self.__dict__[__name] = __value
+        if hasattr(self, 'mini') and hasattr(self, 'maxi'):
+            if self.mini > self.maxi:
+                raise Lnum.RangeError(f'Invalid range {self.mini}~{self.maxi}')
+        if hasattr(self, 'maxi'):
+            limited_num_not_in_range = self.num < self.mini or self.num > self.maxi
+            if limited_num_not_in_range:
+                raise Lnum.OutofRangeError(f'Number({self.num}) out of range({self.mini}~{self.maxi})')
+
+    def __str__(self) -> str:
+        return f'LimitedNum({self.num} in [{self.mini}~{self.maxi}])'
+
+    def __call__(self) -> Union[int, float]:
+        return self.num
+
+
+class Lstr:
+    '''
+    受限字符串(Limited String)
+    限制字符串的长度。限制字符串内容应使用typing.Literal
+
+    Raises:
+        Lstr.RangeError
+        Lstr.OutOfLengthError
+    '''
+    class RangeError(Exception):
+        pass
+
+    class OutOfLengthError(Exception):
+        pass
+
+    def __init__(self, string:str, min_len:float=0, max_len:float=float("inf"), no_error:bool=False) -> None:
+        self.string:str = string
+        self.min_len:float = min_len
+        self.max_len:float = max_len
+        self.no_error = no_error
+
+    def __setattr__(self, __name, __value) -> None:
+        if hasattr(self, 'string'):
+            cp_str = self.string
+        else:
+            self.__dict__[__name] = __value
+            return
+        self.__dict__[__name] = __value
+        lens = len(self.string)
+        if hasattr(self, 'min_len') and hasattr(self, 'max_len'):
+            if self.min_len > self.max_len:
+                raise Lstr.RangeError(f'Invalid range {self.min_len}~{self.max_len}')
+        if hasattr(self, 'no_error'):
+            string_not_in_range = lens < self.min_len or lens > self.max_len
+            if string_not_in_range:
+                if self.no_error:
+                    self.string = cp_str
+                else:
+                    raise Lstr.OutOfLengthError(f'StringLen({len(self.string)}) out of range({self.min_len}~{self.max_len})')
+
+    def __str__(self) -> str:
+        return f'LimitedStr({self.string}, {len(self.string)} in [{self.min_len} ~ {self.max_len}])'
+
+    def __call__(self) -> str:
+        return self.string
+
+
+class Snum:
+    @overload
+    @staticmethod
+    def sqrt(num: Union[int, float]) -> Union[int, float, complex]: ...
+
+    @overload
+    @staticmethod
+    def sqrt(num: complex) -> complex: ...
+
+    @staticmethod
+    def sqrt(num):
+        '''
+        返回数字的平方根
+        '''
+        if isinstance(num, complex) or num < 0:
+            rst = cmath.sqrt(num)
+        elif num == 0:
+            rst = 0.0
+        elif num > 0:
+            rst = math.sqrt(num)
+        else:
+            raise ValueError
+        return rst
+
+
+class Sstr:
+    @staticmethod
+    def keepSplit(_str: str, sep: str，max_split:int = -1) -> List[str]:
+        '''
+        字符串分隔成数组时保留分割字符
+        '''
+        split = []
+        while len(split)+1 == max_split and len(str) != 0:
+            if sep in _str:
+                find = _str.find(sep)
+                split.append(_str[:find])
+                split.append(sep)
+                _str = _str[find+len(sep):]
+            else:
+                split.append(_str)
+                break
+        else:
+            split.append(_str)
+        return split
+
+    @staticmethod
+    def cut(_str: str, partLen: int) -> List[str]:
+        '''
+        将字符串切成等长的数份
+        '''
+        return [_str[i:i+partLen] for i in range(0, len(_str), partLen)]
+
+
+class Sbool: #UNFINISHED
+    pass
+
+
+class BetterFloat:  #TODO UNFINISHED
+    def __init__(self,_int:int=0,_float:int=0) -> None:
+        self.i:int = _int
+        self.f:int = _float if self.i>0 else -_float
+
+    @property
+    def num(self) -> str:
+        return f'{self.i}.{self.f if self.f>0 else -self.f}'
+
+    def __div__(self, other: "BetterFloat") -> "BetterFloat":#TODO
+        return self.__mul__(BetterFloat(str(1/other.num)))
+
+    def __neg__(self) -> "BetterFloat":#TODO
+        strF = list(self.spt)
+        strF[0] = '-' if strF[0] == '+' else ''
+        return BetterFloat(''.join(strF))
+
+    def __add__(self, other: "BetterFloat") -> "BetterFloat":#TODO
+        ofp = [int(x) for x in list(str(other.fpt))]
+        sfp = [int(x) for x in list(str(self.fpt))]
+        for _index, num in enumerate(ofp):
+            try:
+                sfp[_index] += num
+            except:
+                sfp.append(num)
+        sfp.reverse()
+        for _index, i in enumerate(sfp):
+            if i >= 10:
+                sfp[_index] -= 10
+                if _index+1 != len(sfp):
+                    sfp[_index+1] += 1
+                else:
+                    self.ipt += 1
+        sfp.reverse()
+        saving = ''.join([str(x) for x in sfp])
+        return BetterFloat(str(self.ipt + other.ipt)+'.'+saving)
+
+    def __sub__(self, other: "BetterFloat") -> "BetterFloat":#TODO
+        if other.num >= 0:
+            ofp = [int(x) for x in list(str(other.fpt))]
+            sfp = [int(x) for x in list(str(self.fpt))]
+        else:
+            return self.__add__(-other)
+        for _index, num in enumerate(ofp):
+            try:
+                sfp[_index] -= num
+            except:
+                sfp.append(-num)
+        for _index, i in enumerate(sfp):
+            if i < 0:
+                if _index != 0:
+                    sfp[_index-1] -= 1
+                else:
+                    self.ipt -= 1
+                sfp[_index] += 10
+        saving = ''.join([str(x) for x in sfp])
+        return BetterFloat(str(self.ipt - other.ipt)+'.'+saving)
+
+    def __mul__(self, other: "BetterFloat") -> "BetterFloat":#TODO
+        point = len(str(self.fpt))+len(str(other.fpt))
+        saving = list(str(int(f'{self.ipt}{self.fpt}')
+                      * int(f'{other.ipt}{other.fpt}')))
+        saving.insert(len(saving)-point, '.')
+        return BetterFloat(''.join(saving))
+
+    def __str__(self) -> str:
+        return f'BetterFloat({self.i}.{self.f if self.f>0 else -self.f})'
+
+    def __call__(self) -> str:
+        return self.num
+
+
+class Sfloat:
+    @staticmethod
+    def round(num:float,digit:int=0)->float:#NEED_TEST
+        '''
+        四舍五入
+        '''
+        num*=digit if digit!=0 else 1
+        return int(num+5)/digit if digit!=0 else int(num+5)
+    
+    @staticmethod
+    def round46(num:float,digit:int=0)->float:#NEED_TEST
+        '''
+        四舍六入
+        '''
+        num*=digit if digit!=0 else 1
+        if (num-5)%10 == 0:
+            return int(num)/digit if digit!=0 else int(num)
+        else:
+            return int(num+4)/digit if digit!=0 else int(num+4)
+
+
+class SuperByte: #UNFINISHED
+    pass
+
+
+class Slist:
+    @staticmethod
+    def merge(*Lists) -> list:#NEED_TEST
+        '''
+        合并列表
+        '''
+        return sum(lists,[])
+    
+    @staticmethod
+    def AND(*Lists) -> list:#NEED_TEST
+        '''
+        提取列表中所有共同元素
+        '''
+        return list(set(lists[0]).intersection(*list({x} for x in lists[1:])))
+
+    @staticmethod
+    def flatten(List: list) -> list:
+        '''
+        展平多层列表
+        '''
+        def __set_or_tuple_flatten(set_or_tuple: Union[set, tuple, frozenset]) -> list:
+            rs = []
+            for x in set_or_tuple:
+                if type(x) in [set, tuple, frozenset]:
+                    rs.append(__set_or_tuple_flatten(x))
+                elif type(x) is dict:
+                    rs.append(__flattenValue(x))
+                else:
+                    rs.append(x)
+            return rs
+
+        def __flattenValue(val: Any) -> Union[list, Any]:
+            if type(val) in [set, tuple]:
+                return __set_or_tuple_flatten(val)
+            elif type(val) is not dict:
+                return val
+            rst = [x for x in val.values()]
+            rs = []
+            for v in rst:
+                if type(v) is dict:
+                    rs.append(__flattenValue(v))
+                elif type(v) in [set, tuple]:
+                    rs.append(__set_or_tuple_flatten(v))
+                else:
+                    rs.append(v)
+            return rs
+
+        def __flatten(value: Any) -> list:
+            return sum(([__flattenValue(x)] if not isinstance(x, list) else __flatten(x) for x in value), [])
+        return __flatten(List)
+
+
+class SuperDict:
+    @staticmethod
+    def merge(*Dicts:dict,**kwargs) -> dict:#NEED_TEST
+        '''
+        合并字典(对冲突的key,保存最右侧传入的参数)
+        '''
+        return {**{key:value for Dict in dicts for key,value in Dict.items()},**kwargs}
+
+    @staticmethod
+    def AND(*Dicts:dict) -> list:
+        '''
+        提取key值相同的键值对
+        '''
+        return [(key,value) for key, value in SuperDict.merge(*Dicts).items() if key in Slist.AND(*Dicts)]
+
+    @staticmethod
+    def __set_or_tuple_flatten(set_or_tuple: Union[set, tuple, frozenset]) -> list:
+        rs = []
+        for x in set_or_tuple:
+            if type(x) in [set, tuple, frozenset]:
+                rs.append(SuperTuple.flatten(x))
+            elif type(x) is dict:
+                rs.append(SuperDict.flattenValue(x))
+            else:
+                rs.append(x)
+        return Slist.flatten(rs)
+
+    @staticmethod
+    def flattenValue(Dict: dict) -> list:
+        '''
+        展平value
+        '''
+        rst = [x for x in Dict.values()]
+        rs = []
+        for v in rst:
+            if type(v) is dict:
+                rs.append(SuperDict.flattenValue(v))
+            elif type(v) in [set, tuple]:
+                rs.append(SuperDict.__set_or_tuple_flatten(v))
+            else:
+                rs.append(v)
+        return Slist.flatten(rs)
+
+    @staticmethod
+    def flattenKey(Dict: dict) -> list:
+        '''
+        展平key
+        '''
+        rst = [x for x in Dict.keys()]
+        rs = []
+        for v in rst:
+            if type(v) is dict:
+                rs.append(SuperDict.flattenValue(v))
+            elif type(v) in [set, tuple]:
+                rs.append(SuperDict.__set_or_tuple_flatten(v))
+            else:
+                rs.append(v)
+        return Slist.flatten(rs)
+
+    @staticmethod
+    def flatten(Dict: dict) -> dict:
+        '''
+        展平多层字典
+        '''
+        return {key: value for key, value in zip(SuperDict.flattenKey(Dict), SuperDict.flattenValue(Dict))}
+
+#TODO FROM_HERE
+class SuperTuple:
+    @staticmethod
+    def merge(tuple1: tuple, tuple2: tuple) -> tuple:
+        return tuple({*tuple1} ^ {*tuple2})
+
+    @staticmethod
+    def AND(tuple1: tuple, tuple2: tuple) -> tuple:
+        return tuple({*tuple1} & {*tuple2})
+
+    @staticmethod
+    def flatten(tuple0: tuple, depth: int = 0) -> Union[tuple, list]:
+        rs = []
+        for x in tuple0:
+            if type(x) in [set, tuple, frozenset]:
+                rs.append(SuperTuple.flatten(x, depth+1))
+            elif type(x) is dict:
+                rs.append(SuperDict.flattenValue(x))
+            else:
+                rs.append(x)
+        if depth == 0:
+            return tuple(Slist.flatten(rs))
+        return rs
+
+
+class SuperSet:
+    @staticmethod
+    def AND(set1: set, set2: set) -> set:
+        return set1 & set2
+
+    @staticmethod
+    def OR(set1: set, set2: set) -> set:
+        return set1 ^ set2
+
+    @staticmethod
+    def insert(set1: set, set2: set, _index: Union[int, None] = None) -> set:
+        if _index is None:
+            _index = len(set1)-1
+        sets = list(set1)
+        sets.insert(_index, frozenset(set2))
+        return set(sets)
+
+    @staticmethod
+    def flatten(set0: set, depth: int = 0) -> Union[set, list]:
+        rs = []
+        for x in set0:
+            if type(x) in [set, tuple, frozenset]:
+                rs.append(SuperSet.flatten(x, depth+1))
+            elif type(x) is dict:
+                rs.append(SuperDict.flattenValue(x))
+            else:
+                rs.append(x)
+        if depth == 0:
+            return set(Slist.flatten(rs))
+        return rs
+
+
+class SuperListNode:
+    try:
+        from datanode import ListNode
+    except:
+        print(colorama.Fore.LIGHTYELLOW_EX +
+              "WARNING:class <SuperListNode> is unavailable,because module 'datanode' is not installed" + colorama.Fore.RESET)
+
+    @staticmethod
+    def merge(listNode1: "SuperListNode.ListNode", listNode2: "SuperListNode.ListNode") -> "SuperListNode.ListNode":
+        __val1 = listNode1.tolist()
+        __val2 = listNode2.tolist()
+        return SuperListNode.ListNode.createByList(Slist.OR(__val1, __val2))
+    
+    @staticmethod
+    def AND(listNode1: "SuperListNode.ListNode", listNode2: "SuperListNode.ListNode") -> "SuperListNode.ListNode":
+        __val1 = listNode1.tolist()
+        __val2 = listNode2.tolist()
+        return SuperListNode.ListNode.createByList(Slist.AND(__val1, __val2))
+
+class SuperObj:
+    from rich.text import Text
+    __colors: Dict[Union[str, type, None, str], str] = {
+        'obj': "rgb(0,255,0)",
+        'var': "rgb(156,220,254)",
+        str: "rgb(255,255,0)",
+        int: "rgb(255,0,255)",
+        float: "rgb(128,0,128)",
+        None: "rgb(53,140,214)",
+        list: "rgb(255,165,0)",
+        dict: "rgb(255,64,64)",
+        set: "rgb(255,211,155)",
+        tuple: "rgb(30,144,255)",
+        bool: "rgb(53,140,214)",
+        "error": "rgb(255,0,0)",
+        'SYMBOL': "rgb(255,255,255) bold",
+        "max_depth": "rgb(255,255,255)"
+    }
+    @staticmethod
+    # 从ID获取值
+    def __unpackClass(objID: int, rst: Text, spaces: int, depth: int = 0, test=False, max_depth: Union[int, float] = float('inf'),loop_check: Union[None,List] = None, colors:dict = __colors) -> list:
+        Object = ctypes.cast(objID, ctypes.py_object).value
+        if id(Object) not in loop_check:
+            rst.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">:",colors.get(type(Object),'obj'))
+            rst.append('\n')
+            loop_check.append(objID)
+        else:
+            rst.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">...(loop)",colors.get(type(Object),'obj'))
+            return []
+        if (depth := depth + 1) > max_depth:
+            rst.append(' '*spaces*depth+'------MAX DEPTH------',colors['max_depth'])
+            rst.append('\n')
+            return []
+        elif type(Object) is dict:
+            return SuperObj.__unpackDict(
+                Dict=Object,
+                rst=rst,
+                spaces=spaces,
+                depth=depth,
+                max_depth=max_depth,
+                loop_check=loop_check,
+                colors=colors
+            )
+        elif hasattr(Object, '__dict__'):
+            return SuperObj.__unpackDict(
+                Dict=Object.__dict__,
+                rst=rst,
+                spaces=spaces,
+                depth=depth,
+                max_depth=max_depth,
+                loop_check=loop_check,
+                colors=colors
+            )
+        else:
+            try:
+                return SuperObj.__unpackDict(
+                    Dict=dict(enumerate(Object)),
+                    rst=rst,
+                    spaces=spaces,
+                    depth=depth,
+                    max_depth=max_depth,
+                    loop_check=loop_check,
+                    colors=colors
+                )
+            except Exception:
+                rst.append(' '*spaces*(depth)+str(Object)+" Error:Unpack Failed.\n",colors['error'])
+                return []
+
+    # 拆解dict
+    @staticmethod
+    def __unpackDict(Dict: dict, rst: Text, spaces: int, depth: int, max_depth: Union[int, float],loop_check:Union[None,List] = None,colors = __colors) -> Text:
+        if depth > max_depth:
+            rst.append(' '*spaces*depth+'------MAX DEPTH------',colors['max_depth'])
+            rst.append('\n')
+            return rst
+        for key, value in Dict.items():
+            rst.append(' '*spaces*depth)
+            rst.append(str(key),colors['var'])
+            if hasattr(value,'__iter__'):
+                SuperObj.__unpackClass(
+                    objID=id(value),
+                    rst=rst,
+                    spaces=spaces,
+                    depth=depth+1,
+                    max_depth=max_depth,
+                    loop_check=loop_check,
+                    colors=colors
+                )
+            elif value is None:
+                rst.append('None',colors[None])
+            elif type(value) is not str:
+                SuperObj.__dealSingleValue(
+                    value=value,
+                    rst=rst,
+                    spaces=spaces,
+                    depth=depth+1,
+                    max_depth=max_depth,
+                    loop_check=loop_check,
+                    colors=colors)
+            elif type(value) is str:
+                rst.append(' '*spaces*(depth)+' '*(key_len+1))
+                rst.append(value,colors['str'])
+            else:
+                rst.append("<" + str(type(value))[8:-2] + ", ID:" + str(id(value)) + ">...(Cannot Unpack)",colors['obj'])
+        rst.append('\n')
+        return rst
+
+    # 处理数据
+    @staticmethod
+    def __dealSingleValue(value,rst:Text,spaces:int,depth:int,max_depth:Union[int,float],loop_check:list,colors:dict) -> None:
+        try:
+            SuperObj.__unpackClass(id(value), rst, spaces, depth, max_depth=max_depth)[0]
+            return
+        except Exception:
+            pass
+        if type(value) in colors:
+            rst.append(str(value), colors[type(value)])
+        else:
+            rst.append(str(value))
+        return
+
+
+
+
+    @staticmethod
+    def objtext(obj, depth=float('inf'), spaces=4, save=False,colors:dict = __colors) -> Text:
+        rst = SuperObj.Text()
+        result = SuperObj.__unpackClass( 
+                    objID=id(obj),
+                    rst=rst,
+                    spaces=spaces,
+                    max_depth=depth,
+                    loop_check = [],
+                    colors = colors
+                )
+        if save:
+            rst = str(result)
+            for i in SuperObj.__colors.values():
+                rst = rst.replace(i, '')
+            with open(f'./{id(obj)}.txt', 'w') as f:
+                f.write(rst)
+        return result
+
+    @staticmethod
+    def objprint(obj, depth=float('inf'), spaces=4, notes=True,colors:dict = dict(),**changed_colors) -> None:
+        from rich.console import Console
+        console = Console(markup=False,highlight=False)
+        info = SuperObj.Text()
+        colors = SuperDict.merge(SuperObj.__colors,changed_colors)
+        console.print(SuperObj.objtext(obj, depth, spaces,colors=colors))
+        if notes:
+            for num, i in enumerate(colors):
+                if isinstance(i, str):
+                    k = str(i)
+                elif i is None:
+                    k = 'None'
+                else:
+                    k = str(i)[8:-2]
+                if num % 2 == 0:
+                    info.append(f'■ :{k}'+' '*(10-len(k)),style=colors[i])
+                else:
+                    info.append(f'■ :{k}\n',style=colors[i])
+        console.print(info)
+        return
+
+
+class SVI:  # S(string)V(voice)I(image)
+    try:
+        import cnocr
+    except:
+        print(colorama.Fore.LIGHTYELLOW_EX +
+              "WARNING:class <SVI> is unavailable,because module 'cnocr' is not installed" + colorama.Fore.RESET)
+    try:
+        import urllib.request
+    except:
+        print(colorama.Fore.LIGHTYELLOW_EX +
+              "WARING:class <SVI> is unavailable,because module 'urllib' is not installed" + colorama.Fore.RESET)
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except:
+        print(colorama.Fore.LIGHTYELLOW_EX +
+              "WARNING:class <SVI> is not available,because module 'pillow' is not installed" + colorama.Fore.RESET)
+
+    @staticmethod
+    def voice2str(): raise Exception('Unavailable')
+
+    @staticmethod
+    def str2voice(text, sound_ray='man', speak_speed=1, path='./', filename='str2voice'):
+        sound_ray = str(sound_ray).lower()
+        if sound_ray == 'man':
+            sound_ray = 1
+        elif sound_ray == 'shota':
+            sound_ray = 0
+        elif sound_ray == 'woman':
+            sound_ray = 6
+        elif sound_ray == 'loli':
+            sound_ray = 2
+        else:
+            raise ValueError('INCORRECT SOUNDRAY INPUT')
+        try:
+            speak_speed = round(1.0/speak_speed, 1)
+        except:
+            raise ValueError('INCORRECT SPEAK SPEED INPUT')
+        result = requests.get('https://fanyi.sogou.com/reventondc/synthesis?text={}&speed={}&lang=zh-CN&from=translateweb&speaker={}'.format(
+            SVI.urllib.request.quote(text), str(speak_speed), sound_ray)).content  # type:ignore[attr-defined]
+        try:
+            os.makedirs(path)
+        except:
+            pass
+        finally:
+            with open('{}{}.mp3'.format(path, filename), 'wb') as f:
+                f.write(result)
+        return path+filename+'.mp3'
+
+    class Path:
+        "File Path"
+    class Tensor:
+        "torch.Tensor"
+
+    @staticmethod
+    def img2str(img: Union[str, "Path", "Tensor", ndarray], single_line=True, ReturnDetails=False, confidence_warning: Dict[str, float] = {"NoWordWarning": 0.2, "NotTrustableWarning": 0.5, "LowConfidenceWarning": 0.85}, save=False, path='./', name='img2str'):
+        '''
+        Args:
+            img: source file
+            single_line: Remove all line feeds or keep the lines. Defaults to True.
+            ReturnDetails: Return more useful information like confidences and confidence-warning. Defaults to False.
+            confidence_warning: Are the words trustable? Defaults to {"NoWordWarning":0.2,"NotTrustableWarning":0.5,"LowConfidenceWarning":0.85}.
+            save: Save your file or not. Defaults to False.
+            path: Available when 'save' is True.Depends where to save your file. Defaults to './'.
+            name: Available when 'save' is True.Depends your file's name. Defaults to 'img2str'.
+        '''
+        file = path+name+'.txt'
+        _cnocr = SVI.cnocr.CnOcr()
+        result = _cnocr.ocr(img_fp=img) 
+        as_is_text = [''.join(x[0]) for x in result]
+        if single_line:
+            text = ''.join(as_is_text)
+        else:
+            text = '\n'.join(as_is_text)
+        if ReturnDetails:
+            confidence_level = [round(x[1], 2) for x in result]
+            average_confidence_level = 0.0
+
+            def _add(inputs):
+                nonlocal average_confidence_level
+                average_confidence_level += inputs
+            _ = [_add(x) for x in confidence_level]
+            average_confidence_level /= len(confidence_level)
+            if average_confidence_level <= confidence_warning['NoWordWarning']:
+                warning_level = 'NoWordWarning'
+                as_is_text = []
+                text = ''
+            elif average_confidence_level <= confidence_warning['NotTrustableWarning']:
+                warning_level = 'NotTrustableWarning'
+            elif average_confidence_level <= confidence_warning['LowConfidenceWarning']:
+                warning_level = 'LowConfidenceWarning'
+            else:
+                warning_level = ""
+            details = {'as_is_text': as_is_text, 'text': text, 'confidence': round(
+                average_confidence_level, 2), 'all_confidence': confidence_level, 'warning': warning_level}
+            if save:
+                with open(file, 'w') as f:
+                    f.write(str(details))
+            return details
+        if save:
+            with open(file, 'w') as f:
+                f.write(str(text))
+        return text
+
+    @staticmethod
+    def str2img(text, path='./', name='str2img', find='', x=1, y=1):
+        file = path+name+".png"
+        if find != '':
+            if x == 1:
+                x = max([len(x) for x in text.split(find)])*13
+            if y == 1:
+                y = (text.count(find)+1)*20
+        im = SVI.Image.new("RGB", (x, y), (255, 255, 255))
+        dr = SVI.ImageDraw.Draw(im)
+        font = SVI.ImageFont.truetype(os.path.join("./fonts", "msyh.ttf"), 14)
+        dr.text((10, 5), text, font=font, fill="#000000")
+        im.save(file)
+        return file
+
+
+class SuperType:
+    @staticmethod
+    def toStr(text, find='', change_ENTER=True, keep_tuple=False, keep_set=False, dict_split=False):
+        if type(text) == list:
+            text = [SuperType.toStr(x, find, change_ENTER, keep_tuple, dict_split)
+                    for x in text]
+            if change_ENTER == True:
+                text = ", ".join(text).replace(", ", "\n").replace(", ", ', ')
+            else:
+                text = ', '.join(text).replace(
+                    ' , ', ', ').replace(", ", ', ')
+        elif type(text) == dict:
+            if dict_split == False:
+                text = [SuperType.toStr(x, find, change_ENTER, keep_tuple=True)
+                        for x in text.items()]
+            else:
+                text = [SuperType.toStr(x, find, change_ENTER, keep_tuple=False)
+                        for x in text.items()]
+            text = ", ".join(text).replace(
+                ", ", " : ").replace("(", "").replace(")", "")
+        elif type(text) == tuple:
+            if keep_tuple == True:
+                text = "("+', '.join([SuperType.toStr(x) for x in text])+")"
+            else:
+                text = " , ".join([SuperType.toStr(x) for x in text])
+        elif type(text) in [int, float, str, bool] or text == None:
+            text = str(text)
+        elif type(text) == type:
+            text = str(text).replace("'", '')
+        elif type(text) == set:
+            if keep_set == False:
+                text = ' , '.join(
+                    [SuperType.toStr(x, find, change_ENTER, keep_tuple, dict_split) for x in list(text)])
+            else:
+                text = '{'+', '.join([SuperType.toStr(x) for x in text])+'}'
+        else:
+            raise ValueError
+        return text
+
+
+class SuperBit:  # TEST
+    def __init__(self):
+        self.val = "00000000"
+
+    def __check(self, val: Union[int, bool]):
+        if type(val) is bool:
+            if val:
+                return 1
+            else:
+                return 0
+        if val % 2:
+            return 0
+        else:
+            return 1
+
+    def one(self, val: Union[int, bool]):
+        val = self.__check(val)
+        self.val = self.val[:8]+str(val)
+
+    def two(self, val: Union[int, bool]):
+        val = self.__check(val)
+        self.val = self.val[:7]+str(val)+self.val[:-1]
+
+    def three(self, val: Union[int, bool]):
+        val = self.__check(val)
+        self.val = self.val[:6]+str(val)+self.val[:-2]
+
+    def four(self, val: Union[int, bool]):
+        val = self.__check(val)
+        self.val = self.val[:5]+str(val)+self.val[:-3]
+
+    def five(self, val: Union[int, bool]):
+        val = self.__check(val)
+        self.val = self.val[:4]+str(val)+self.val[:-4]
+
+    def six(self, val: Union[int, bool]):
+        val = self.__check(val)
+        self.val = self.val[:3]+str(val)+self.val[:-5]
+
+    def seven(self, val: Union[int, bool]):
+        val = self.__check(val)
+        self.val = self.val[:2]+str(val)+self.val[:-6]
+
+    def eight(self, val: Union[int, bool]):
+        val = self.__check(val)
+        self.val = str(val)+self.val[:-7]
+
+    def __call__(self):
+        return int(self.val, 2)
+
+    def __str__(self):
+        return self.val
