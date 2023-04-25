@@ -14,7 +14,7 @@ colorama.init(autoreset=False)
 
 __version__ = "0.4.6"
 
-def asyncFuncTimer(func: Callable) -> Callable:
+def asyncTimer(func: Callable) -> Callable:
     '''
     异步测定函数运行时间(无返回值)
     误差范围0~+10ms
@@ -32,7 +32,7 @@ def asyncFuncTimer(func: Callable) -> Callable:
     return __timer
 
 
-def funcTimer(func: Callable) -> Callable:
+def Timer(func: Callable) -> Callable:
     '''
     测定函数运行时间的装饰器(无返回值)
     A decorator to count time the func uses
@@ -51,7 +51,7 @@ def codeTimer(func: Callable) -> Callable:#NEED TEST
     测定函数运行时间并返回其运行值
     count time the func uses, and return the result
     '''
-    @funcTimer
+    @Timer
     @functools.wraps(func)
     def __codeTimer(*args, **kwargs) -> Any:
         nonlocal func
@@ -485,7 +485,7 @@ class SListNode: #TODO TEST
 
 class SuperObj: #TODO UNFINISHED
     from rich.text import Text
-    __colors: Dict[Union[str, type, None, str], str] = {
+    __styles: Dict[Union[str, type, None, str], str] = {
         'obj': "rgb(0,255,0)",
         'var': "rgb(156,220,254)",
         str: "rgb(255,255,0)",
@@ -501,19 +501,20 @@ class SuperObj: #TODO UNFINISHED
         'SYMBOL': "rgb(255,255,255) bold",
         "max_depth": "rgb(255,255,255)"
     }
+
     @staticmethod
     # 从ID获取值
-    def __unpackClass(objID: int, rst: Text, spaces: int, depth: int = 0, test=False, max_depth: Union[int, float] = float('inf'),loop_check: Union[None,List] = None, colors:dict = __colors) -> list:
+    def __unpackClass(objID: int, rst: Text, spaces: int, depth: int = 0, test=False, max_depth: Union[int, float] = float('inf'),loop_check: Union[None,List] = None, styles:dict = __styles) -> list:
         Object = ctypes.cast(objID, ctypes.py_object).value
         if id(Object) not in loop_check:
-            rst.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">:",colors.get(type(Object),'obj'))
+            rst.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">:",styles.get(type(Object),'obj'))
             rst.append('\n')
             loop_check.append(objID)
         else:
-            rst.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">...(loop)",colors.get(type(Object),'obj'))
+            rst.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">...(loop)",styles.get(type(Object),'obj'))
             return []
         if (depth := depth + 1) > max_depth:
-            rst.append(' '*spaces*depth+'------MAX DEPTH------',colors['max_depth'])
+            rst.append(' '*spaces*depth+'------MAX DEPTH------',styles['max_depth'])
             rst.append('\n')
             return []
         elif type(Object) is dict:
@@ -524,7 +525,7 @@ class SuperObj: #TODO UNFINISHED
                 depth=depth,
                 max_depth=max_depth,
                 loop_check=loop_check,
-                colors=colors
+                styles=styles
             )
         elif hasattr(Object, '__dict__'):
             return SuperObj.__unpackDict(
@@ -534,7 +535,7 @@ class SuperObj: #TODO UNFINISHED
                 depth=depth,
                 max_depth=max_depth,
                 loop_check=loop_check,
-                colors=colors
+                styles=styles
             )
         else:
             try:
@@ -545,22 +546,18 @@ class SuperObj: #TODO UNFINISHED
                     depth=depth,
                     max_depth=max_depth,
                     loop_check=loop_check,
-                    colors=colors
+                    styles=styles
                 )
             except Exception:
-                rst.append(' '*spaces*(depth)+str(Object)+" Error:Unpack Failed.\n",colors['error'])
+                rst.append(' '*spaces*(depth)+str(Object)+" Error:Unpack Failed.\n",styles['error'])
                 return []
 
     # 拆解dict
     @staticmethod
-    def __unpackDict(Dict: dict, rst: Text, spaces: int, depth: int, max_depth: Union[int, float],loop_check:Union[None,List] = None,colors = __colors) -> Text:
-        if depth > max_depth:
-            rst.append(' '*spaces*depth+'------MAX DEPTH------',colors['max_depth'])
-            rst.append('\n')
-            return rst
+    def __unpackDict(Dict: dict, rst: Text, spaces: int, depth: int, max_depth: Union[int, float],loop_check:Union[None,List] = None,styles = __styles) -> Text:
         for key, value in Dict.items():
             rst.append(' '*spaces*depth)
-            rst.append(str(key),colors['var'])
+            rst.append(str(key),styles['var'])
             if hasattr(value,'__iter__'):
                 SuperObj.__unpackClass(
                     objID=id(value),
@@ -569,46 +566,30 @@ class SuperObj: #TODO UNFINISHED
                     depth=depth+1,
                     max_depth=max_depth,
                     loop_check=loop_check,
-                    colors=colors
+                    styles=styles
                 )
             elif value is None:
-                rst.append('None',colors[None])
+                rst.append('None',styles[None])
             elif type(value) is not str:
-                SuperObj.__dealSingleValue(
-                    value=value,
-                    rst=rst,
-                    spaces=spaces,
-                    depth=depth+1,
-                    max_depth=max_depth,
-                    loop_check=loop_check,
-                    colors=colors)
+                try:
+                    SuperObj.__unpackClass(id(value), rst, spaces, depth+1, max_depth=max_depth)[0]
+                    return
+                except Exception:
+                    pass
+                if type(value) in styles:
+                    rst.append(str(value), styles[type(value)])
+                else:
+                    rst.append(str(value))
             elif type(value) is str:
                 rst.append(' '*spaces*(depth)+' '*(key_len+1))
-                rst.append(value,colors['str'])
+                rst.append(value,styles['str'])
             else:
-                rst.append("<" + str(type(value))[8:-2] + ", ID:" + str(id(value)) + ">...(Cannot Unpack)",colors['obj'])
+                rst.append("<" + str(type(value))[8:-2] + ", ID:" + str(id(value)) + ">...(Cannot Unpack)",styles['obj'])
         rst.append('\n')
         return rst
 
-    # 处理数据
     @staticmethod
-    def __dealSingleValue(value,rst:Text,spaces:int,depth:int,max_depth:Union[int,float],loop_check:list,colors:dict) -> None:
-        try:
-            SuperObj.__unpackClass(id(value), rst, spaces, depth, max_depth=max_depth)[0]
-            return
-        except Exception:
-            pass
-        if type(value) in colors:
-            rst.append(str(value), colors[type(value)])
-        else:
-            rst.append(str(value))
-        return
-
-
-
-
-    @staticmethod
-    def objtext(obj, depth=float('inf'), spaces=4, save=False,colors:dict = __colors) -> Text:
+    def objtext(obj, depth=float('inf'), spaces=4, save=False,styles:dict = __styles) -> Text:
         rst = SuperObj.Text()
         result = SuperObj.__unpackClass( 
                     objID=id(obj),
@@ -616,25 +597,25 @@ class SuperObj: #TODO UNFINISHED
                     spaces=spaces,
                     max_depth=depth,
                     loop_check = [],
-                    colors = colors
+                    styles = styles
                 )
         if save:
             rst = str(result)
-            for i in SuperObj.__colors.values():
+            for i in SuperObj.__styles.values():
                 rst = rst.replace(i, '')
             with open(f'./{id(obj)}.txt', 'w') as f:
                 f.write(rst)
         return result
 
     @staticmethod
-    def objprint(obj, depth=float('inf'), spaces=4, notes=True,colors:dict = dict(),**changed_colors) -> None:
+    def objprint(obj, depth=float('inf'), spaces=4, notes=True,styles:dict = dict(),**changed_styles) -> None:
         from rich.console import Console
         console = Console(markup=False,highlight=False)
         info = SuperObj.Text()
-        colors = SuperDict.merge(SuperObj.__colors,changed_colors)
-        console.print(SuperObj.objtext(obj, depth, spaces,colors=colors))
+        styles = SuperDict.merge(SuperObj.__styles,changed_styles)
+        console.print(SuperObj.objtext(obj, depth, spaces,styles=styles))
         if notes:
-            for num, i in enumerate(colors):
+            for num, i in enumerate(styles):
                 if isinstance(i, str):
                     k = str(i)
                 elif i is None:
@@ -642,9 +623,9 @@ class SuperObj: #TODO UNFINISHED
                 else:
                     k = str(i)[8:-2]
                 if num % 2 == 0:
-                    info.append(f'■ :{k}'+' '*(10-len(k)),style=colors[i])
+                    info.append(f'■ :{k}'+' '*(10-len(k)),style=styles[i])
                 else:
-                    info.append(f'■ :{k}\n',style=colors[i])
+                    info.append(f'■ :{k}\n',style=styles[i])
         console.print(info)
         return
 
