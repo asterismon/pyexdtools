@@ -12,7 +12,7 @@ from numpy import ndarray
 
 colorama.init(autoreset=False)
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 def asyncTimer(func: Callable) -> Callable:
     '''
@@ -155,14 +155,14 @@ class Snum:
         返回数字的平方根
         '''
         if isinstance(num, complex) or num < 0:
-            rst = cmath.sqrt(num)
+            result = cmath.sqrt(num)
         elif num == 0:
-            rst = 0.0
+            result = 0.0
         elif num > 0:
-            rst = math.sqrt(num)
+            result = math.sqrt(num)
         else:
             raise ValueError
-        return rst
+        return result
 
 
 class Sstr:
@@ -330,9 +330,9 @@ class Slist:
                 return __set_or_tuple_flatten(val)
             elif type(val) is not dict:
                 return val
-            rst = [x for x in val.values()]
+            result = [x for x in val.values()]
             result = []
-            for v in rst:
+            for v in result:
                 if type(v) is dict:
                     result.append(__flattenValue(v))
                 elif type(v) in [set, tuple]:
@@ -378,9 +378,9 @@ class SuperDict:
         '''
         展平value
         '''
-        rst = [x for x in Dict.values()]
+        result = [x for x in Dict.values()]
         result = []
-        for v in rst:
+        for v in result:
             if type(v) is dict:
                 result.append(SuperDict.flattenValue(v))
             elif type(v) in [set, tuple]:
@@ -394,9 +394,9 @@ class SuperDict:
         '''
         展平key
         '''
-        rst = [x for x in Dict.keys()]
+        result = [x for x in Dict.keys()]
         result = []
-        for v in rst:
+        for v in result:
             if type(v) is dict:
                 result.append(SuperDict.flattenValue(v))
             elif type(v) in [set, tuple]:
@@ -504,23 +504,23 @@ class SuperObj: #TODO UNFINISHED
 
     @staticmethod
     # 从ID获取值
-    def __unpackClass(objID: int, rst: Text, spaces: int, depth: int = 0, test=False, max_depth: Union[int, float] = float('inf'),loop_check: Union[None,List] = None, styles:dict = __styles) -> list:
+    def __unpackClass(objID: int, result: Text, spaces: int, depth: int = 0, test=False, max_depth: Union[int, float] = float('inf'),loop_check: Union[None,List] = None, styles:dict = __styles) -> list:
         Object = ctypes.cast(objID, ctypes.py_object).value
         if id(Object) not in loop_check:
-            rst.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">:",styles.get(type(Object),'obj'))
-            rst.append('\n')
+            result.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">:",styles.get(type(Object),'obj'))
+            result.append('\n')
             loop_check.append(objID)
         else:
-            rst.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">...(loop)",styles.get(type(Object),'obj'))
+            result.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">...(loop)",styles.get(type(Object),'obj'))
             return []
         if (depth := depth + 1) > max_depth:
-            rst.append(' '*spaces*depth+'------MAX DEPTH------',styles['max_depth'])
-            rst.append('\n')
+            result.append(' '*spaces*depth+'------MAX DEPTH------',styles['max_depth'])
+            result.append('\n')
             return []
         elif type(Object) is dict:
             return SuperObj.__unpackDict(
                 Dict=Object,
-                rst=rst,
+                result=result,
                 spaces=spaces,
                 depth=depth,
                 max_depth=max_depth,
@@ -530,7 +530,7 @@ class SuperObj: #TODO UNFINISHED
         elif hasattr(Object, '__dict__'):
             return SuperObj.__unpackDict(
                 Dict=Object.__dict__,
-                rst=rst,
+                result=result,
                 spaces=spaces,
                 depth=depth,
                 max_depth=max_depth,
@@ -541,7 +541,7 @@ class SuperObj: #TODO UNFINISHED
             try:
                 return SuperObj.__unpackDict(
                     Dict=dict(enumerate(Object)),
-                    rst=rst,
+                    result=result,
                     spaces=spaces,
                     depth=depth,
                     max_depth=max_depth,
@@ -549,19 +549,19 @@ class SuperObj: #TODO UNFINISHED
                     styles=styles
                 )
             except Exception:
-                rst.append(' '*spaces*(depth)+str(Object)+" Error:Unpack Failed.\n",styles['error'])
+                result.append(' '*spaces*(depth)+str(Object)+" Error:Unpack Failed.\n",styles['error'])
                 return []
 
     # 拆解dict
     @staticmethod
-    def __unpackDict(Dict: dict, rst: Text, spaces: int, depth: int, max_depth: Union[int, float],loop_check:Union[None,List] = None,styles = __styles) -> Text:
+    def __unpackDict(Dict: dict, result: Text, spaces: int, depth: int, max_depth: Union[int, float],loop_check:Union[None,List] = None,styles = __styles) -> Text:
         for key, value in Dict.items():
-            rst.append(' '*spaces*depth)
-            rst.append(str(key),styles['var'])
+            result.append(' '*spaces*depth)
+            result.append(str(key),styles['var'])
             if hasattr(value,'__iter__'):
                 SuperObj.__unpackClass(
                     objID=id(value),
-                    rst=rst,
+                    result=result,
                     spaces=spaces,
                     depth=depth+1,
                     max_depth=max_depth,
@@ -569,42 +569,42 @@ class SuperObj: #TODO UNFINISHED
                     styles=styles
                 )
             elif value is None:
-                rst.append('None',styles[None])
+                result.append('None',styles[None])
             elif type(value) is not str:
                 try:
-                    SuperObj.__unpackClass(id(value), rst, spaces, depth+1, max_depth=max_depth)[0]
+                    SuperObj.__unpackClass(id(value), result, spaces, depth+1, max_depth=max_depth)[0]
                     return
                 except Exception:
                     pass
                 if type(value) in styles:
-                    rst.append(str(value), styles[type(value)])
+                    result.append(str(value), styles[type(value)])
                 else:
-                    rst.append(str(value))
+                    result.append(str(value))
             elif type(value) is str:
-                rst.append(' '*spaces*(depth)+' '*(key_len+1))
-                rst.append(value,styles['str'])
+                result.append(' '*spaces*(depth)+' '*(key_len+1))
+                result.append(value,styles['str'])
             else:
-                rst.append("<" + str(type(value))[8:-2] + ", ID:" + str(id(value)) + ">...(Cannot Unpack)",styles['obj'])
-        rst.append('\n')
-        return rst
+                result.append("<" + str(type(value))[8:-2] + ", ID:" + str(id(value)) + ">...(Cannot Unpack)",styles['obj'])
+        result.append('\n')
+        return result
 
     @staticmethod
     def objtext(obj, depth=float('inf'), spaces=4, save=False,styles:dict = __styles) -> Text:
-        rst = SuperObj.Text()
+        result = SuperObj.Text()
         result = SuperObj.__unpackClass( 
                     objID=id(obj),
-                    rst=rst,
+                    result=result,
                     spaces=spaces,
                     max_depth=depth,
                     loop_check = [],
                     styles = styles
                 )
         if save:
-            rst = str(result)
+            result = str(result)
             for i in SuperObj.__styles.values():
-                rst = rst.replace(i, '')
+                result = result.replace(i, '')
             with open(f'./{id(obj)}.txt', 'w') as f:
-                f.write(rst)
+                f.write(result)
         return result
 
     @staticmethod
