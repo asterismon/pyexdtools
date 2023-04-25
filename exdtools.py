@@ -12,7 +12,7 @@ from numpy import ndarray
 
 colorama.init(autoreset=False)
 
-__version__ = "0.4.6"
+__version__ = "0.5.1"
 
 def asyncTimer(func: Callable) -> Callable:
     '''
