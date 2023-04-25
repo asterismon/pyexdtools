@@ -25,7 +25,7 @@ def asyncFuncTimer(func: Callable) -> Callable:
         func_running = Thread(target=func,args=args,kwargs=kwargs)
         func_running.run()
         while func_running.isAlive():
-            time.sleep(10)
+            time.sleep(0.01)
             stop = time.perf_counter_ns()
             print(f"<{func.__name__}>运行中...已运行{(stop-start)/1_000_000} ms")
         print(f"<{func.__name__}>已结束,运行了{(stop-start)/1_000_000} ms")
