@@ -12,7 +12,7 @@ from numpy import ndarray
 
 colorama.init(autoreset=False)
 
-__version__ = "0.4.6"
+__version__ = "0.5.1"
 
 def asyncFuncTimer(func: Callable) -> Callable:
     '''
@@ -25,7 +25,7 @@ def asyncFuncTimer(func: Callable) -> Callable:
         func_running = Thread(target=func,args=args,kwargs=kwargs)
         func_running.run()
         while func_running.isAlive():
-            time.sleep(10)
+            time.sleep(0.01)
             stop = time.perf_counter_ns()
             print(f"<{func.__name__}>运行中...已运行{(stop-start)/1_000_000} ms")
         print(f"<{func.__name__}>已结束,运行了{(stop-start)/1_000_000} ms")
@@ -315,15 +315,15 @@ class Slist:
         展平多层列表
         '''
         def __set_or_tuple_flatten(set_or_tuple: Union[set, tuple, frozenset]) -> list:
-            rs = []
+            result = []
             for x in set_or_tuple:
                 if type(x) in [set, tuple, frozenset]:
-                    rs.append(__set_or_tuple_flatten(x))
+                    result.append(__set_or_tuple_flatten(x))
                 elif type(x) is dict:
-                    rs.append(__flattenValue(x))
+                    result.append(__flattenValue(x))
                 else:
-                    rs.append(x)
-            return rs
+                    result.append(x)
+            return result
 
         def __flattenValue(val: Any) -> Union[list, Any]:
             if type(val) in [set, tuple]:
@@ -331,15 +331,15 @@ class Slist:
             elif type(val) is not dict:
                 return val
             rst = [x for x in val.values()]
-            rs = []
+            result = []
             for v in rst:
                 if type(v) is dict:
-                    rs.append(__flattenValue(v))
+                    result.append(__flattenValue(v))
                 elif type(v) in [set, tuple]:
-                    rs.append(__set_or_tuple_flatten(v))
+                    result.append(__set_or_tuple_flatten(v))
                 else:
-                    rs.append(v)
-            return rs
+                    result.append(v)
+            return result
 
         def __flatten(value: Any) -> list:
             return sum(([__flattenValue(x)] if not isinstance(x, list) else __flatten(x) for x in value), [])
@@ -363,15 +363,15 @@ class SuperDict:
 
     @staticmethod
     def __set_or_tuple_flatten(set_or_tuple: Union[set, tuple, frozenset]) -> list:
-        rs = []
+        result = []
         for x in set_or_tuple:
             if type(x) in [set, tuple, frozenset]:
-                rs.append(Stuple.flatten(x))
+                result.append(Stuple.flatten(x))
             elif type(x) is dict:
-                rs.append(SuperDict.flattenValue(x))
+                result.append(SuperDict.flattenValue(x))
             else:
-                rs.append(x)
-        return Slist.flatten(rs)
+                result.append(x)
+        return Slist.flatten(result)
 
     @staticmethod
     def flattenValue(Dict: dict) -> list:
@@ -379,15 +379,15 @@ class SuperDict:
         展平value
         '''
         rst = [x for x in Dict.values()]
-        rs = []
+        result = []
         for v in rst:
             if type(v) is dict:
-                rs.append(SuperDict.flattenValue(v))
+                result.append(SuperDict.flattenValue(v))
             elif type(v) in [set, tuple]:
-                rs.append(SuperDict.__set_or_tuple_flatten(v))
+                result.append(SuperDict.__set_or_tuple_flatten(v))
             else:
-                rs.append(v)
-        return Slist.flatten(rs)
+                result.append(v)
+        return Slist.flatten(result)
 
     @staticmethod
     def flattenKey(Dict: dict) -> list:
@@ -395,15 +395,15 @@ class SuperDict:
         展平key
         '''
         rst = [x for x in Dict.keys()]
-        rs = []
+        result = []
         for v in rst:
             if type(v) is dict:
-                rs.append(SuperDict.flattenValue(v))
+                result.append(SuperDict.flattenValue(v))
             elif type(v) in [set, tuple]:
-                rs.append(SuperDict.__set_or_tuple_flatten(v))
+                result.append(SuperDict.__set_or_tuple_flatten(v))
             else:
-                rs.append(v)
-        return Slist.flatten(rs)
+                result.append(v)
+        return Slist.flatten(result)
 
     @staticmethod
     def flatten(Dict: dict) -> dict:
@@ -429,17 +429,17 @@ class Stuple:
 
     @staticmethod
     def flatten(Tuple: tuple, depth: int = 0) -> Union[tuple, list]:
-        rs = []
+        result = []
         for x in Tuple:
             if type(x) in [set, tuple, frozenset]:
-                rs.append(Stuple.flatten(x, depth+1))
+                result.append(Stuple.flatten(x, depth+1))
             elif type(x) is dict:
-                rs.append(SuperDict.flattenValue(x))
+                result.append(SuperDict.flattenValue(x))
             else:
-                rs.append(x)
+                result.append(x)
         if depth == 0:
-            return tuple(Slist.flatten(rs))
-        return rs
+            return tuple(Slist.flatten(result))
+        return result
 
 
 class Sset:
@@ -453,17 +453,17 @@ class Sset:
 
     @staticmethod
     def flatten(Set: set, depth: int = 0) -> Union[set, list]:
-        rs = []
+        result = []
         for x in Set:
             if type(x) in [set, tuple, frozenset]:
-                rs.append(Sset.flatten(x, depth+1))
+                result.append(Sset.flatten(x, depth+1))
             elif type(x) is dict:
-                rs.append(SuperDict.flattenValue(x))
+                result.append(SuperDict.flattenValue(x))
             else:
-                rs.append(x)
+                result.append(x)
         if depth == 0:
-            return set(Slist.flatten(rs))
-        return rs
+            return set(Slist.flatten(result))
+        return result
 
 
 class SListNode: #TODO TEST
