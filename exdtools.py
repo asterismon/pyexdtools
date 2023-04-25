@@ -12,7 +12,7 @@ from numpy import ndarray
 
 colorama.init(autoreset=False)
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 def asyncFuncTimer(func: Callable) -> Callable:
     '''
@@ -155,14 +155,14 @@ class Snum:
         返回数字的平方根
         '''
         if isinstance(num, complex) or num < 0:
-            rst = cmath.sqrt(num)
+            result = cmath.sqrt(num)
         elif num == 0:
-            rst = 0.0
+            result = 0.0
         elif num > 0:
-            rst = math.sqrt(num)
+            result = math.sqrt(num)
         else:
             raise ValueError
-        return rst
+        return result
 
 
 class Sstr:
@@ -330,9 +330,9 @@ class Slist:
                 return __set_or_tuple_flatten(val)
             elif type(val) is not dict:
                 return val
-            rst = [x for x in val.values()]
+            result = [x for x in val.values()]
             result = []
-            for v in rst:
+            for v in result:
                 if type(v) is dict:
                     result.append(__flattenValue(v))
                 elif type(v) in [set, tuple]:
@@ -378,9 +378,9 @@ class SuperDict:
         '''
         展平value
         '''
-        rst = [x for x in Dict.values()]
+        result = [x for x in Dict.values()]
         result = []
-        for v in rst:
+        for v in result:
             if type(v) is dict:
                 result.append(SuperDict.flattenValue(v))
             elif type(v) in [set, tuple]:
@@ -394,9 +394,9 @@ class SuperDict:
         '''
         展平key
         '''
-        rst = [x for x in Dict.keys()]
+        result = [x for x in Dict.keys()]
         result = []
-        for v in rst:
+        for v in result:
             if type(v) is dict:
                 result.append(SuperDict.flattenValue(v))
             elif type(v) in [set, tuple]:
@@ -502,33 +502,33 @@ class SuperObj:
 
     @staticmethod
     # 从ID获取值
-    def __unpackClass(objID: int, res: list, spaces: int, depth: int = 0, test=False, max_depth: Union[int, float] = float('inf')) -> list:
+    def __unpackClass(objID: int, result: list, spaces: int, depth: int = 0, test=False, max_depth: Union[int, float] = float('inf')) -> list:
         Object = ctypes.cast(objID, ctypes.py_object).value
         if (depth := depth + 1) > max_depth:
-            res.append(' '*spaces*depth+colorama.Fore.LIGHTRED_EX +
+            result.append(' '*spaces*depth+colorama.Fore.LIGHTRED_EX +
                        '...'+colorama.Fore.RESET+'\n')
             return []
         elif type(Object) is dict:
-            return SuperObj.__unpackDict(Object, res, spaces, depth, max_depth)
+            return SuperObj.__unpackDict(Object, result, spaces, depth, max_depth)
         elif hasattr(Object, '__dict__'):
-            return SuperObj.__unpackDict(Object.__dict__, res, spaces, depth, max_depth)
+            return SuperObj.__unpackDict(Object.__dict__, result, spaces, depth, max_depth)
         else:
             return []
 
     @staticmethod
     # 拆解dict
-    def __unpackDict(dicts: dict, res: list, spaces: int, depth: int, max_depth: Union[int, float]):
+    def __unpackDict(dicts: dict, result: list, spaces: int, depth: int, max_depth: Union[int, float]):
         if depth > max_depth:
-            return res
+            return result
         for key, value in dicts.items():
-            res.append(' '*spaces*depth)
-            res.append('LATTER_IS_VARIABLE_TAG')  # 标记变量
-            res.append(str(key))
-            res.append(':')
+            result.append(' '*spaces*depth)
+            result.append('LATTER_IS_VARIABLE_TAG')  # 标记变量
+            result.append(str(key))
+            result.append(':')
             if value is not None and isinstance(value,type(value)) and type(value) not in [int,float,str,bool]:
-                res.append('LATTER_IS_ID_TAG2')  # 标记类ID
-                res.append(str(type(value))[8:-2]+', ID:')
-                res.append(id(value))
+                result.append('LATTER_IS_ID_TAG2')  # 标记类ID
+                result.append(str(type(value))[8:-2]+', ID:')
+                result.append(id(value))
                 if type(value) in [list, dict, set, tuple]:
                     val = str(value)
                     while ' object at 0x' in val:
@@ -536,7 +536,7 @@ class SuperObj:
                         rt = val[:val.find(' object at 0x')]+', ID:'
                         num, ot = ot[:ot.find('>')], ot[ot.find('>'):]
                         val = rt+str(int(num, 16))+ot
-                    res.append('\n'+' '*spaces*(depth)+' '*(len(key)+1) +
+                    result.append('\n'+' '*spaces*(depth)+' '*(len(key)+1) +
                                SuperObj.__color[type(value)]+str(val)+SuperObj.__color['RESET'] +
                                '\n'+' '*spaces*(depth)+' '*(len(key)+1) +
                                SuperObj.__color['obj'] +
@@ -545,8 +545,8 @@ class SuperObj:
                                '\n'
                                )
                 else:
-                    res.append('\n')
-                if id(value) not in res[:-2]:
+                    result.append('\n')
+                if id(value) not in result[:-2]:
                     if type(value) in [list, dict, set, tuple]:
                         value = list(SuperList.flatten([value]))
                         try:
@@ -556,9 +556,9 @@ class SuperObj:
                         for i in value:
                             try:
                                 SuperObj.__unpackClass(
-                                    id(i), res, spaces, depth, max_depth=max_depth)
+                                    id(i), result, spaces, depth, max_depth=max_depth)
                             except:
-                                res.append(colorama.Fore.LIGHTRED_EX +
+                                result.append(colorama.Fore.LIGHTRED_EX +
                                            colorama.Back.LIGHTYELLOW_EX +
                                            'Error:Unpack Failed' +
                                            colorama.Fore.RESET +
@@ -568,158 +568,158 @@ class SuperObj:
                             if type(value) is str:
                                 raise TypeError
                             SuperObj.__unpackClass(
-                                id(value), res, spaces, depth, max_depth=max_depth)
+                                id(value), result, spaces, depth, max_depth=max_depth)
                         except:
                             if type(value) in SuperObj.__color:
-                                res.append(' '*spaces*(depth)+' '*(len(key)+1) +SuperObj.__color[type(value)]+str(value))
-                                res.append('\n')
+                                result.append(' '*spaces*(depth)+' '*(len(key)+1) +SuperObj.__color[type(value)]+str(value))
+                                result.append('\n')
                             elif value is None:
-                                res.append(' '*spaces*(depth)+' '*(len(key)+1) +SuperObj.__color[None]+"None")
-                                res.append('\n')
+                                result.append(' '*spaces*(depth)+' '*(len(key)+1) +SuperObj.__color[None]+"None")
+                                result.append('\n')
                             else:
-                                res.append(' '*spaces*(depth)+' '*(len(key)+1) +value)
-                                res.append('\n')
+                                result.append(' '*spaces*(depth)+' '*(len(key)+1) +value)
+                                result.append('\n')
                 else:
-                    res[-4] = 'AFTER_HAS_EXIST_ID_TAG'
+                    result[-4] = 'AFTER_HAS_EXIST_ID_TAG'
             else:
-                res.append(value)
-                res.append('\n')
-        return res
+                result.append(value)
+                result.append('\n')
+        return result
 
     @staticmethod
-    def __unpackDictVal(_index: list, dict_val: dict, res: list, spaces: int, depth: int, max_depth: Union[int, float]):
+    def __unpackDictVal(_index: list, dict_val: dict, result: list, spaces: int, depth: int, max_depth: Union[int, float]):
         if (depth := depth + 1) > max_depth:
-            res.insert(_index[0], '...')
-            return res
+            result.insert(_index[0], '...')
+            return result
         for key, value in dict_val.items():
-            res.insert(_index[0], ' '*spaces*depth)
+            result.insert(_index[0], ' '*spaces*depth)
             _index[0] += 1
-            res.insert(_index[0], 'LATTER_IS_VARIABLE_TAG')
+            result.insert(_index[0], 'LATTER_IS_VARIABLE_TAG')
             _index[0] += 1
-            res.insert(_index[0], key)
+            result.insert(_index[0], key)
             _index[0] += 1
-            res.insert(_index[0], ':')
+            result.insert(_index[0], ':')
             _index[0] += 1
             if type(value) is dict:
-                res.insert(_index[0], '{\n')
+                result.insert(_index[0], '{\n')
                 _index[0] += 1
                 SuperObj.__unpackDictVal(
-                    _index, value, res, spaces, depth, max_depth)
-                res.insert(_index[0], ' '*spaces*depth+'}\n')
+                    _index, value, result, spaces, depth, max_depth)
+                result.insert(_index[0], ' '*spaces*depth+'}\n')
                 _index[0] += 1
             else:
-                res.insert(_index[0], value)
+                result.insert(_index[0], value)
                 _index[0] += 1
-                res.insert(_index[0], '\n')
+                result.insert(_index[0], '\n')
                 _index[0] += 1
-        return res
+        return result
 
     @staticmethod
     def __unpackValue(list_val: list, spaces: int, depth: int, max_depth: Union[int, float]) -> str:
         if (depth := depth+1) > max_depth:
             return "..."
-        res = list_val
+        result = list_val
         while True:
             dictUPK: list[Any] = []
-            for num, i in enumerate(res):
+            for num, i in enumerate(result):
                 if type(i) is dict:
-                    res[num] = '\n'
+                    result[num] = '\n'
                     SuperObj.__unpackDictVal(
-                        [num+1], i, res, spaces, depth, max_depth)
+                        [num+1], i, result, spaces, depth, max_depth)
             if dictUPK == []:
                 break
         while True:
             listUPK: list[Any] = []
-            for num, i in enumerate(res):
+            for num, i in enumerate(result):
                 if type(i) is list:
-                    res[num] = '\n'
-                    [str(x)+'\n' for x in res[num]]
+                    result[num] = '\n'
+                    [str(x)+'\n' for x in result[num]]
             if listUPK == []:
                 break
-        return ''.join([str(x) for x in res]).replace('LATTER_IS_VARIABLE_TAG', '')
+        return ''.join([str(x) for x in result]).replace('LATTER_IS_VARIABLE_TAG', '')
 
     @staticmethod
-    def __resultDealing(rst: list, spaces: int, max_depth: Union[int, float], _color: dict = __color):
+    def __resultDealing(result: list, spaces: int, max_depth: Union[int, float], _color: dict = __color):
         jump = 0
         rest_jumps = 0
-        rst2 = rst.copy()
-        for num, i in enumerate(rst2):
+        result_copy = result.copy()
+        for num, i in enumerate(result_copy):
             if jump:
                 jump -= 1
                 continue
             if i == 'LATTER_IS_ID_TAG2':
-                rst[num+rest_jumps] = _color['obj']
-                rst.insert(num+rest_jumps+1, '<')
-                rst[num+rest_jumps+3] = str(rst[num+rest_jumps+3])
-                rst.insert(num+rest_jumps+4, '>')
-                rst.insert(num+rest_jumps+5, _color['RESET'])
+                result[num+rest_jumps] = _color['obj']
+                result.insert(num+rest_jumps+1, '<')
+                result[num+rest_jumps+3] = str(result[num+rest_jumps+3])
+                result.insert(num+rest_jumps+4, '>')
+                result.insert(num+rest_jumps+5, _color['RESET'])
                 jump = 2
                 rest_jumps += 3
             elif str(i).endswith('LATTER_IS_ID_TAG'):
                 i = i[:i.find('LATTER_IS_ID_TAG')]
-                rst[num+rest_jumps] = _color['obj']
-                rst.insert(num+rest_jumps+1, i+'<')
-                rst[num+rest_jumps+3] = str(rst[num+rest_jumps+3])
-                rst.insert(num+rest_jumps+4, '>:')
-                rst.insert(num+rest_jumps+5, _color['RESET'])
+                result[num+rest_jumps] = _color['obj']
+                result.insert(num+rest_jumps+1, i+'<')
+                result[num+rest_jumps+3] = str(result[num+rest_jumps+3])
+                result.insert(num+rest_jumps+4, '>:')
+                result.insert(num+rest_jumps+5, _color['RESET'])
                 jump = 2
                 rest_jumps += 3
             elif i == 'AFTER_HAS_EXIST_ID_TAG':
-                rst[num+rest_jumps] = _color['obj']
-                rst.insert(num+rest_jumps+1, '<')
-                rst[num+rest_jumps+3] = str(rst[num+rest_jumps+3])
-                rst.insert(num+rest_jumps+4, '>:')
-                rst.insert(num+rest_jumps+5, _color['SYMBOL'])
-                rst.insert(num+rest_jumps+6, '...')
-                rst.insert(num+rest_jumps+7, _color['RESET'])
+                result[num+rest_jumps] = _color['obj']
+                result.insert(num+rest_jumps+1, '<')
+                result[num+rest_jumps+3] = str(result[num+rest_jumps+3])
+                result.insert(num+rest_jumps+4, '>:')
+                result.insert(num+rest_jumps+5, _color['SYMBOL'])
+                result.insert(num+rest_jumps+6, '...')
+                result.insert(num+rest_jumps+7, _color['RESET'])
                 jump = 2
                 rest_jumps += 5
             elif i == 'LATTER_IS_VARIABLE_TAG':
-                rst[num+rest_jumps] = _color['var']
-                rst.insert(num+rest_jumps+2, _color['RESET'])
+                result[num+rest_jumps] = _color['var']
+                result.insert(num+rest_jumps+2, _color['RESET'])
                 jump = 1
                 rest_jumps += 1
             else:
-                if i == '\n' or rst2[num-1] == '\n':
+                if i == '\n' or result_copy[num-1] == '\n':
                     continue
                 elif type(i) == dict:
-                    rst.insert(num+rest_jumps, _color[dict])
-                    rst.insert(num+rest_jumps+1, ' '*len(rst2[num-8])+'{')
-                    rst[num+rest_jumps+2] = SuperObj.__unpackValue(
+                    result.insert(num+rest_jumps, _color[dict])
+                    result.insert(num+rest_jumps+1, ' '*len(result_copy[num-8])+'{')
+                    result[num+rest_jumps+2] = SuperObj.__unpackValue(
                         list_val=[i],
                         spaces=spaces,
-                        depth=int(len(rst2[num-8])/4-1),
+                        depth=int(len(result_copy[num-8])/4-1),
                         max_depth=max_depth
-                    )[:-1]+'\n'+' '*len(rst2[num-8])+'}'
+                    )[:-1]+'\n'+' '*len(result_copy[num-8])+'}'
                     rest_jumps += 2
                 else:
                     try:
-                        if rst[num+rest_jumps] is not None:
+                        if result[num+rest_jumps] is not None:
                             if i == ':':
-                                rst.insert(num+rest_jumps, _color['SYMBOL'])
+                                result.insert(num+rest_jumps, _color['SYMBOL'])
                             else:
-                                rst.insert(num+rest_jumps, _color[type(i)])
+                                result.insert(num+rest_jumps, _color[type(i)])
                         else:
-                            rst.insert(num+rest_jumps, _color[None])
+                            result.insert(num+rest_jumps, _color[None])
                     except:
-                        rst.insert(num+rest_jumps, _color[str])
-                    if str(rst[num+rest_jumps-2]) == ':':
-                        if not isinstance(rst[num+rest_jumps+1], str):
-                            rst[num+rest_jumps+1] = str(rst[num+rest_jumps+1])
+                        result.insert(num+rest_jumps, _color[str])
+                    if str(result[num+rest_jumps-2]) == ':':
+                        if not isinstance(result[num+rest_jumps+1], str):
+                            result[num+rest_jumps+1] = str(result[num+rest_jumps+1])
                         else:
-                            rst[num+rest_jumps +
-                                1] = f'"{str(rst[num+rest_jumps+1])}"'
+                            result[num+rest_jumps +
+                                1] = f'"{str(result[num+rest_jumps+1])}"'
                     else:
-                        rst[num+rest_jumps+1] = str(rst[num+rest_jumps+1])
-                    rst.insert(num+rest_jumps+2, _color['RESET'])
+                        result[num+rest_jumps+1] = str(result[num+rest_jumps+1])
+                    result.insert(num+rest_jumps+2, _color['RESET'])
                     rest_jumps += 2
-        return rst
+        return result
 
     @staticmethod
     def objlist(obj, depth=float('inf'), spaces=4, save=False):
         result = SuperObj.__resultDealing(
             SuperObj.__unpackClass(objID=id(obj),
-                                                                 res=['LATTER_IS_ID_TAG',
+                                                                 result=['LATTER_IS_ID_TAG',
                                                                       str(type(obj))[
                                                                           8:-2]+', ID:',
                                                                       id(obj),
