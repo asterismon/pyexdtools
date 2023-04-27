@@ -167,30 +167,30 @@ class Snum:
 
 class Sstr:
     @staticmethod
-    def keepSplit(_str: str, sep: str，max_split:int = -1) -> List[str]:
+    def keepSplit(Str: str, sep: str，max_split:int = -1) -> List[str]:
         '''
         字符串分隔成数组时保留分割字符
         '''
         split = []
         while len(split)+1 == max_split and len(str) != 0:
-            if sep in _str:
-                find = _str.find(sep)
-                split.append(_str[:find])
+            if sep in Str:
+                find = Str.find(sep)
+                split.append(Str[:find])
                 split.append(sep)
-                _str = _str[find+len(sep):]
+                Str = Str[find+len(sep):]
             else:
-                split.append(_str)
+                split.append(Str)
                 break
         else:
-            split.append(_str)
+            split.append(Str)
         return split
 
     @staticmethod
-    def cut(_str: str, partLen: int) -> List[str]:
+    def cut(Str: str, sub_len: int) -> List[str]:
         '''
         将字符串切成等长的数份
         '''
-        return [_str[i:i+partLen] for i in range(0, len(_str), partLen)]
+        return [Str[i:i+sub_len] for i in range(0, len(Str), sub_len)]
 
 
 class Sbool: #UNFINISHED
@@ -198,9 +198,9 @@ class Sbool: #UNFINISHED
 
 
 class BetterFloat:  #TODO UNFINISHED
-    def __init__(self,_int:int=0,_float:int=0) -> None:
-        self.i:int = _int
-        self.f:int = _float if self.i>0 else -_float
+    def __init__(self,int_part:int=0,float_part:int=0) -> None:
+        self.i:int = int_part
+        self.f:int = float_part if self.i>0 else -float_part
 
     @property
     def num(self) -> str:
