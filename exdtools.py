@@ -12,7 +12,7 @@ from numpy import ndarray
 
 colorama.init(autoreset=False)
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 def asyncTimer(func: Callable) -> Callable:
     '''
@@ -485,7 +485,7 @@ class SListNode: #TODO TEST
 
 class SuperObj: #TODO UNFINISHED
     from rich.text import Text
-    __styles: Dict[Union[str, type, None, str], str] = {
+    __styles: Dict[Union[str, type, None], str] = {
         'obj': "rgb(0,255,0)",
         'var': "rgb(156,220,254)",
         str: "rgb(255,255,0)",
