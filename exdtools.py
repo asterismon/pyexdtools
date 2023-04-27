@@ -12,7 +12,7 @@ from numpy import ndarray
 
 colorama.init(autoreset=False)
 
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 
 def asyncTimer(func: Callable) -> Callable:
     '''
@@ -485,13 +485,14 @@ class SListNode: #TODO TEST
 
 class SuperObj: #TODO UNFINISHED
     from rich.text import Text
-    __styles: Dict[Union[str, type, None], str] = {
+    from collections import defaultdict
+    __styles: Dict[Union[str, type], str] = {
         'obj': "rgb(0,255,0)",
         'var': "rgb(156,220,254)",
         str: "rgb(255,255,0)",
         int: "rgb(255,0,255)",
         float: "rgb(128,0,128)",
-        None: "rgb(53,140,214)",
+        type(None): "rgb(53,140,214)",
         list: "rgb(255,165,0)",
         dict: "rgb(255,64,64)",
         set: "rgb(255,211,155)",
@@ -507,11 +508,11 @@ class SuperObj: #TODO UNFINISHED
     def __unpackClass(objID: int, result: Text, spaces: int, depth: int = 0, test=False, max_depth: Union[int, float] = float('inf'),loop_check: Union[None,List] = None, styles:dict = __styles) -> list:
         Object = ctypes.cast(objID, ctypes.py_object).value
         if id(Object) not in loop_check:
-            result.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">:",styles.get(type(Object),'obj'))
+            result.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">:",styles.setdefault(type(Object),'obj'))
             result.append('\n')
             loop_check.append(objID)
         else:
-            result.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">...(loop)",styles.get(type(Object),'obj'))
+            result.append("<" + str(type(Object))[8:-2] + ", ID:" + str(id(Object)) + ">...(loop)",styles.setdefault(type(Object),'obj'))
             return []
         if (depth := depth + 1) > max_depth:
             result.append(' '*spaces*depth+'------MAX DEPTH------',styles['max_depth'])
@@ -568,8 +569,6 @@ class SuperObj: #TODO UNFINISHED
                     loop_check=loop_check,
                     styles=styles
                 )
-            elif value is None:
-                result.append('None',styles[None])
             elif type(value) is not str:
                 try:
                     SuperObj.__unpackClass(id(value), result, spaces, depth+1, max_depth=max_depth)[0]
@@ -584,7 +583,7 @@ class SuperObj: #TODO UNFINISHED
                 result.append(' '*spaces*(depth)+' '*(key_len+1))
                 result.append(value,styles['str'])
             else:
-                result.append("<" + str(type(value))[8:-2] + ", ID:" + str(id(value)) + ">...(Cannot Unpack)",styles['obj'])
+                result.append("<" + str(type(value))[8:-2] + ", ID:" + str(id(value)) + ">...(Cannot Unpack)",styles.setdefault(type(Object),'obj'))
         result.append('\n')
         return result
 
